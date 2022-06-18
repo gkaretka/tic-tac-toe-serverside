@@ -10,13 +10,12 @@ class Game extends Component {
 
   constructor(props) {
     super(props);
-    this.state = { socketCreated: false, myTurn: false, playfield: [], type: '' };
+    this.state = { socketCreated: false, myTurn: false, playfield: [], started: false, winner: null, ended: null, mark: ''};
 
     let pf = this.state.playfield;
     for (var i = 0; i < this.width*this.height; i++) {
       let newRef = createRef();
       this.tilesRefs.push(newRef);
-
       pf.push(''); 
     }
     this.setState({ 'playfield': pf });
@@ -30,7 +29,6 @@ class Game extends Component {
 
     this.sock.onmessage = evt => { 
       let data = JSON.parse(evt.data);
-      console.log(data);
       this.setState(data);
     };
 
@@ -53,10 +51,6 @@ class Game extends Component {
     this.sock.send(JSON.stringify(jmsg));
   }
 
-  checkGame = () => {
-    return ' ';
-  }
-
   render = () => {
     let tiles = [];
 
@@ -69,11 +63,22 @@ class Game extends Component {
       tiles.push(<Row> {partTiles} </Row>);
     }
 
+    let state_msg = <h1>Waiting for oponent</h1>;
+    if (this.state.started) {
+      state_msg = <h1>Game started it is : { this.state.myTurn ? "your turn" : "oponent's turn" }.</h1>
+    }
+
+    if (this.state.ended === true) {
+      state_msg = <h1>Game ended, {this.id === this.state.winner ? 'you won!' : this.state.winner == '' ? 'it\'s tie!' : 'you lost!'}</h1>
+    }
+
+    let playingAs = <h1>Playing as {this.state.mark}</h1>
+    
     return (
       <div>
         {tiles}
-        <h1>{ (this.state.ended === false) ? "Game in progess" : "Winner is player: " + this.state.winner }</h1>
-        { (this.state.ended === true) ? <Button onClick={this.reset}>Reset</Button> : '' }
+        {state_msg}
+        {playingAs}
       </div>
     );
   }

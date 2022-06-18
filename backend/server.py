@@ -23,6 +23,9 @@ class Playfield:
     self.free = True
     self.started = False
     self.broadcast_update = False
+    self.winner = None
+    self.round = 0
+    self.ended = False
 
     self.width = 3
     self.height = 3
@@ -48,27 +51,66 @@ class Playfield:
     self.started = True
     player: Player
     for player in self.players:
-      jstr = {'playfield': self.tiles, 'myTurn': player.my_turn}
+      jstr = {'playfield': self.tiles, 'myTurn': player.my_turn, 'started': True, 'mark': player.mark}
       await player.socket.send(json.dumps(jstr))
 
   async def update_playfield(self):
+    winner = ''
+    if self.round == self.width*self.height:
+      self.ended = True
+
+    if self.winner != None:
+      winner = self.winner.id
+
     player: Player
     for player in self.players:
-      jstr = {'playfield': self.tiles, 'myTurn': player.my_turn}
-      print(self.tiles)
+      jstr = {'playfield': self.tiles, 'myTurn': player.my_turn, 'winner': winner, 'ended': self.ended}
       await player.socket.send(json.dumps(jstr))
       
     self.broadcast_update = False
 
+  def check_board(self):
+    field = self.tiles
+
+    # check rows
+    for i in range(0, self.width*self.height, 3):
+      if field[i] == field[i+1] and field[i] == field[i+2] and len(field[i]) > 0:
+        self.ended = True
+        return field[i]
+    
+    # check cols
+    for i in range(0, self.width):
+      if field[i] == field[i+3] and field[i] == field[i+6] and len(field[i]) > 0:
+        self.ended = True
+        return field[i]
+
+    # check diagonals
+    if field[0] == field[4] and field[0] == field[8] and len(field[i]) > 0:
+      self.ended = True
+      return field[0]
+    if field[2] == field[4] and field[2] == field[6] and len(field[i]) > 0:
+      self.ended = True
+      return field[2]
+
+    return None
+
+
   def set_tile(self, player_id, tile_id):
     player: Player
     player = list(filter(lambda x: x.id == player_id, self.players))[0]
-    if player.my_turn == True:
+    if player.my_turn and self.started and not self.ended:
       self.tiles[tile_id] = player.mark
       player.my_turn = False
       player_2 = list(filter(lambda x: x.id != player_id, self.players))[0]
       player_2.my_turn = True
+      
       self.broadcast_update = True
+      self.round += 1
+
+      winner = self.check_board()
+      if winner != None:
+        self.winner = player
+
 
 async def game(websocket):
     async for message in websocket:
